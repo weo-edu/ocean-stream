@@ -1,0 +1,25 @@
+{
+  "name": "ocean-stream",
+  "version": "0.0.0",
+  "description": "stream commands to digital ocean",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git@github.com:weo-edu/ocean-stream.git"
+  },
+  "author": "joshrtay",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/weo-edu/ocean-stream/issues"
+  },
+  "homepage": "https://github.com/weo-edu/ocean-stream",
+  "dependencies": {
+    "stream-ssh": "git://github.com/weo-edu/stream-ssh",
+    "moment": "~2.5.1",
+    "seq": "~0.3.5",
+    "lodash": "~2.4.1"
+  }
+}
