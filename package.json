@@ -3,6 +3,9 @@
   "version": "0.0.5",
   "description": "stream commands to digital ocean",
   "main": "index.js",
+  "bin": {
+    "ocean-stream": "./bin/ocean-stream.js"
+  },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
@@ -27,6 +30,7 @@
     "readable-stream": "~1.1.12",
     "progress": "~1.1.5",
     "poll-port": "0.0.0",
-    "digitalocean-api": "~0.1.1"
+    "digitalocean-api": "~0.1.1",
+    "minimist": "0.0.8"
   }
 }

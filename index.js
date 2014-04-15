@@ -20,7 +20,11 @@ module.exports = function(config) {
       client.sizeGetAll(this);
     })
     .seq(function(sizes) {
-      var size = _.find(sizes, {name: config.size || '2GB'});
+      // Sizes are all upper-case, but our interface can be
+      // forgiving in that regard
+      config.size = (config.size || '2GB').toUpperCase();
+
+      var size = _.find(sizes, {name: config.size});
       droplet.size = droplet.size || size.id;
       client.sshKeyGetAll(this);
     })
@@ -46,13 +50,31 @@ module.exports = function(config) {
       client.imageGetMine(this)
     })
     .seq(function(images) {
-      droplet.image = _.find(images, {name: config.name}).id;
+      droplet.image = _.find(images, {name: config.image}).id;
       client.dropletNew(droplet.name, droplet.size, droplet.image, droplet.region, {
         ssh_key_ids: droplet.ssh_keys
       }, this);
     })
     .seq(function(instance) {
       var self = this;
+      this.destroyed = false;
+      // Do our best to guarantee that the droplet is destroyed
+      // no matter what
+      process.on('SIGINT', function() {
+        if(! self.destroyed) {
+          client.dropletDestroy(droplet.id, function(err) {
+            if(err) {
+              console.log('DROPLET NOT DESTROYED, Make sure that you'
+                + ' destroy it manually in your digital ocean account,'
+                + ' otherwise you will continue to be billed for it');
+            }
+
+            process.exit(err ? -1 : 0);
+          });
+        } else
+          process.exit(0);
+      });
+
       var last = 0;
       var bar = new ProgressBar(' Booting droplet [:bar] :percent :etas', {
         complete: '=',
@@ -87,20 +109,24 @@ module.exports = function(config) {
     .seq(function(droplet) {
       stream.connect({
         host: droplet.ip_address,
-        username: config.username,
+        username: config.user,
         privateKey: config.privateKey
       }).on('end', this.bind(null, null, droplet));
+    })
+    .catch(function(err) {
+      stream.emit('error', err);
     })
     .seq(function(droplet) {
       console.log('destroying...');
       client.dropletDestroy(droplet.id, this);
     })
     .seq(function(id) {
+      this.destroyed = true;
       console.log(id, 'destroyed');
       this();
     })
     .catch(function(err) {
-      stream.emit('error', err);
+      console.log('Error destroying, you MUST shutdown the instance manually');
     });
 
   return stream;
