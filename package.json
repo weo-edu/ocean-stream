@@ -18,7 +18,6 @@
   "homepage": "https://github.com/weo-edu/ocean-stream",
   "dependencies": {
     "stream-ssh": "0.0.2",
-    "moment": "~2.5.1",
     "seq": "~0.3.5",
     "lodash": "~2.4.1",
     "streamify": "~0.2.3",

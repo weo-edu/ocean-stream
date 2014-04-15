@@ -1,6 +1,5 @@
 var ssh = require('stream-ssh');
 var DigitalOceanApi = require('digitalocean-api');
-var moment = require('moment');
 var Seq = require('seq');
 var _ = require('lodash');
 var ProgressBar = require('progress');
@@ -11,7 +10,7 @@ module.exports = function(config) {
   var client  = new DigitalOceanApi(config.client, config.key);
   var droplet = {
     region: config.region || 3,
-    name: 'Ocean-Stream-' + moment().toISOString().replace(/:/g, '-')
+    name: 'Ocean-Stream-' + (new Date).toISOString().replace(/:/g, '-')
   };
 
   config.username = config.username || 'root';
