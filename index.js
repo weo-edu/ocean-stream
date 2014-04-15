@@ -5,7 +5,6 @@ var Seq = require('seq');
 var _ = require('lodash');
 var ProgressBar = require('progress');
 var pollPort = require('poll-port');
-var path = require('path');
 
 module.exports = function(config) {
   var stream = ssh();
