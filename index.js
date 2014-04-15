@@ -14,6 +14,8 @@ module.exports = function(config) {
     name: 'Ocean-Stream-' + moment().toISOString().replace(/:/g, '-')
   };
 
+  config.username = config.username || 'root';
+
   Seq()
     .seq(function() {
       client.sizeGetAll(this);
@@ -24,7 +26,24 @@ module.exports = function(config) {
       client.sshKeyGetAll(this);
     })
     .seq(function(keys) {
-      droplet.ssh_keys = droplet.ssh_keys || _.pluck(keys, 'id');
+      if(config.ssh_keys) {
+        droplet.ssh_keys = [].concat(config.ssh_keys);
+        // If the user has passed in keys, allow them to
+        // refer to them by name instead of by id
+        droplet.ssh_keys = droplet.ssh_keys.map(function(key) {
+          if(isNaN(Number(key))) {
+            key = _.find(keys, {name: key});
+            if(! key) throw new Error('SSH Key: "' + key.name + '" not found');
+            key = key.id;
+          }
+          return key;
+        });
+      } else {
+        // If not, default to all the keys listed in the
+        // account
+        droplet.ssh_keys = _.pluck(keys, 'id');
+      }
+
       client.imageGetMine(this)
     })
     .seq(function(images) {
