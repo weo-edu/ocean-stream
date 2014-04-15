@@ -1,6 +1,6 @@
 {
   "name": "ocean-stream",
-  "version": "0.0.5",
+  "version": "0.0.6",
   "description": "stream commands to digital ocean",
   "main": "index.js",
   "bin": {
