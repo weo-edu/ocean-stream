@@ -3,83 +3,88 @@ var DigitalOceanApi = require('digitalocean-api');
 var moment = require('moment');
 var Seq = require('seq');
 var _ = require('lodash');
-var streamify = require('streamify');
-
+var ProgressBar = require('progress');
+var pollPort = require('poll-port');
+var path = require('path');
 
 module.exports = function(config) {
-  var api = config.api;
-	var client  = new DigitalOceanApi(api.client, api.key);
-  var sshKeys, defaultSize, dropletId;
-  var stream = streamify();
+  var stream = ssh();
+  var client  = new DigitalOceanApi(config.client, config.key);
+  var droplet = {
+    region: config.region || 3,
+    name: 'Ocean-Stream-' + moment().toISOString().replace(/:/g, '-')
+  };
 
   Seq()
     .seq(function() {
       client.sizeGetAll(this);
     })
     .seq(function(sizes) {
-      defaultSize = _(sizes)
-        .where({name: '2GB'})
-        .value()[0];
+      var size = _.find(sizes, {name: config.size || '2GB'});
+      droplet.size = droplet.size || size.id;
       client.sshKeyGetAll(this);
     })
     .seq(function(keys) {
-      sshKeys = keys;
+      droplet.ssh_keys = droplet.ssh_keys || _.pluck(keys, 'id');
       client.imageGetMine(this)
     })
     .seq(function(images) {
-      var defaultImage = _(images)
-        .reverse()
-        .where({name: 'ocean-stream-default'})
-        .value()[0];
-      console.log('image', defaultImage);
-      var opts = _.defaults(config.droplet || {}, {
-        name: 'Ocean-Stream-' + moment().toISOString().replace(/:/g, '-'),
-        size: defaultSize.id, // 2gb
-        image: defaultImage.id,
-        region: 3, // san fran
-        ssh_keys: _.pluck(sshKeys, 'id')
-      })
-      console.log('opts', opts);
-      client.dropletNew(opts.name, opts.size, opts.image, opts.region, {
-        ssh_key_ids: opts.ssh_keys.join(',')
-      }, this)
+      droplet.image = _.find(images, {name: config.name}).id;
+      client.dropletNew(droplet.name, droplet.size, droplet.image, droplet.region, {
+        ssh_key_ids: droplet.ssh_keys
+      }, this);
     })
     .seq(function(instance) {
-      dropletId = instance.id;
       var self = this;
+      var last = 0;
+      var bar = new ProgressBar(' Booting droplet [:bar] :percent :etas', {
+        complete: '=',
+        incomplete: ' ',
+        width: 20,
+        total: 100,
+        callback: function() {
+          clearInterval(interval);
+          self(null, instance);
+        }
+      });
       var interval = setInterval(function() {
         client.eventGet(instance.event_id, function(err, evt) {
-          console.log('evt', evt);
-          if (evt.percentage === '100') {
-            clearInterval(interval);
-            self();
-          }
-        })
+          if(err) throw err;
+          var p = Number(evt.percentage);
+          bar.tick(p - last);
+          last = p;
+        });
       }, 2000);
     })
-    .seq(function() {
-      client.dropletGet(dropletId, this);
+    .seq(function(instance) {
+      client.dropletGet(instance.id, this);
     })
     .seq(function(droplet) {
-      console.log('resolve stream');
-      stream.resolve(ssh(config.ssh));
+      // Wait for the server to *really* be finished starting up, as
+      // its not usually accepting incoming connections quite yet
+      var self = this;
+      pollPort(22, droplet.ip_address, 30000, function(err) {
+        self(err, droplet);
+      });
+    })
+    .seq(function(droplet) {
+      stream.connect({
+        host: droplet.ip_address,
+        username: config.username,
+        privateKey: config.privateKey
+      }).on('end', this.bind(null, null, droplet));
+    })
+    .seq(function(droplet) {
+      console.log('destroying...');
+      client.dropletDestroy(droplet.id, this);
+    })
+    .seq(function(id) {
+      console.log(id, 'destroyed');
+      this();
+    })
+    .catch(function(err) {
+      stream.emit('error', err);
     });
 
-
   return stream;
-}
-
-
-fs.createReadStream('./test.sh')
-  .pipe(es.split())
-  .pipe(module.exports({
-    api: {
-      key: "7f59e7507df7b193d49a2dc46a36e4e2",
-      client: "f62aa48d2408f533af8735bc1a2b6a22"
-    }
-    ssh: {
-      username: 'task',
-      privateKey: fs.readFileSync(path.resolve(process.env.HOME, '.ssh/id_rsa'))
-    }
-  ))
-  .pipe(consoleStream());
+};

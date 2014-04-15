@@ -17,9 +17,16 @@
   },
   "homepage": "https://github.com/weo-edu/ocean-stream",
   "dependencies": {
-    "stream-ssh": "git://github.com/weo-edu/stream-ssh",
+    "stream-ssh": "0.0.2",
     "moment": "~2.5.1",
     "seq": "~0.3.5",
-    "lodash": "~2.4.1"
+    "lodash": "~2.4.1",
+    "streamify": "~0.2.3",
+    "event-stream": "~3.1.2",
+    "console-stream": "~0.1.1",
+    "corkable": "0.0.0",
+    "readable-stream": "~1.1.12",
+    "progress": "~1.1.5",
+    "poll-port": "0.0.0"
   }
 }
