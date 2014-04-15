@@ -6,7 +6,7 @@ Create a temporary digital ocean instance, stream commands to it over ssh, and r
 ## Example
 
 ```javascript
-fs.createReadStream('./test.sh')
+fs.createReadStream('./task.sh')
   .pipe(es.split())
   .pipe(oceanStream({
     key: '<your API key>',
