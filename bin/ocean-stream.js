@@ -16,4 +16,11 @@ stream.pipe(oceanStream({
   image: argv.image,
   user: argv.user
 }))
+.on('error', function(code) {
+  console.log('Task failed with code: ' + code);
+  throw new Error;
+})
+.on('end', function() {
+  console.log('stream ended');
+})
 .pipe(require('console-stream')());

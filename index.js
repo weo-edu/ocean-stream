@@ -15,6 +15,25 @@ module.exports = function(config) {
 
   config.username = config.username || 'root';
 
+  function notifyIfNotDestroyed(seq) {
+    if(! seq.destroyed) {
+      console.log('DROPLET NOT DESTROYED, Make sure that you'
+        + ' destroy it manually in your digital ocean account,'
+        + ' otherwise you will continue to be billed for it', err);
+    }
+  }
+
+  function ensureDestroyed(seq, droplet, die) {
+    if(! seq.destroyed) {
+      client.dropletDestroy(droplet.id, function(err) {
+        seq.destroyed = ! err;
+        notifyIfNotDestroyed(seq);
+        die && process.exit(1);
+      });
+    } else
+      die && process.exit(1);
+  }
+
   Seq()
     .seq(function() {
       client.sizeGetAll(this);
@@ -60,23 +79,13 @@ module.exports = function(config) {
       this.destroyed = false;
       // Do our best to guarantee that the droplet is destroyed
       // no matter what
-      process.on('SIGINT', function() {
-        if(! self.destroyed) {
-          client.dropletDestroy(droplet.id, function(err) {
-            if(err) {
-              console.log('DROPLET NOT DESTROYED, Make sure that you'
-                + ' destroy it manually in your digital ocean account,'
-                + ' otherwise you will continue to be billed for it');
-            }
-
-            process.exit(err ? -1 : 0);
-          });
-        } else
-          process.exit(0);
-      });
+      var destroy = ensureDestroyed.bind(null, this, instance, true);
+      process.on('SIGINT', destroy);
+      process.on('uncaughtException', destroy);
+      process.on('exit', notifyIfNotDestroyed.bind(null, self));
 
       var last = 0;
-      var bar = new ProgressBar(' Booting droplet [:bar] :percent :etas', {
+      var bar = new ProgressBar(' Provisioning droplet [:bar] :percent :etas', {
         complete: '=',
         incomplete: ' ',
         width: 20,
@@ -102,7 +111,8 @@ module.exports = function(config) {
       // Wait for the server to *really* be finished starting up, as
       // its not usually accepting incoming connections quite yet
       var self = this;
-      pollPort(22, droplet.ip_address, 30000, function(err) {
+      console.log('Waiting for the server to start...');
+      pollPort(22, droplet.ip_address, 60000, function(err) {
         self(err, droplet);
       });
     })
@@ -115,6 +125,7 @@ module.exports = function(config) {
     })
     .catch(function(err) {
       stream.emit('error', err);
+      this();
     })
     .seq(function(droplet) {
       console.log('destroying...');
@@ -127,6 +138,7 @@ module.exports = function(config) {
     })
     .catch(function(err) {
       console.log('Error destroying, you MUST shutdown the instance manually');
+      this();
     });
 
   return stream;
