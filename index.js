@@ -120,7 +120,8 @@ module.exports = function(config) {
       stream.connect({
         host: droplet.ip_address,
         username: config.user,
-        privateKey: config.privateKey
+        privateKey: config.privateKey,
+        shell: {}
       }).on('end', this.bind(null, null, droplet));
     })
     .catch(function(err) {
